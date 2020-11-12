@@ -14,7 +14,10 @@ local config = {
     requiresPlugins = {}, -- required plugins for this plugin to work, separated by commas
 
     -- Newer ESX versions use license instead of steam for identity, specify the other below if different
-    identityType = "license"
+    identityType = "license",
+    -- Some ESX versions don't use the prefix (such as license:abcdef), set to false to disable the prefix
+    usePrefix = false
+}
 }
 
 if config.enabled then
