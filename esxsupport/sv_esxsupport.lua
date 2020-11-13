@@ -71,7 +71,6 @@ if pluginConfig.enabled then
                 return JobCache[tostring(player)]
             else
                 debugLog(("Player %s has no cached job"):format(player))
-                return "unemployed"
             end
         end
         local identifier = GetIdentifiers(player)[pluginConfig.identityType]
@@ -84,7 +83,12 @@ if pluginConfig.enabled then
         else
             warnLog("Unable to find job: "..("%s%s"):format(pluginConfig.usePrefix and pluginConfig.identityType..":" or "",identifier))
         end
-        cb(currentJob)
+        if cb == nil then
+            JobCache[tostring(player)] = currentJob
+            return currentJob
+        else
+            cb(currentJob)
+        end
     end
 
     -- Caching functionality, used locally to reduce database load
