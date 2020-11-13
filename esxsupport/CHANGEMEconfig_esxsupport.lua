@@ -18,7 +18,6 @@ local config = {
     -- Some ESX versions don't use the prefix (such as license:abcdef), set to false to disable the prefix
     usePrefix = false
 }
-}
 
 if config.enabled then
     Config.RegisterPluginConfig(config.pluginName, config)
