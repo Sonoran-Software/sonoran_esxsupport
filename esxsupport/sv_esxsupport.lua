@@ -18,43 +18,36 @@ if pluginConfig.enabled then
 
     CreateThread(function()
         local waited = 0
-        while waited < 100 do
+        while waited < 5 do
             if ESX == nil then
                 TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
-                Wait(10)
+                Wait(1000)
+                debugLog("Waiting for ESX...")
             end
             waited = waited + 1
         end
         if ESX == nil then
             errorLog("[sonoran_esxsupport] ESX is not configured correctly, but you're attempting to use the ESX support plugin. Please set up ESX or disable this plugin.")
             return
+        else
+            infoLog("ESX support loaded successfully.")
         end
     end)
 
     -- Helper function to get the ESX Identity object from your database
     function GetIdentity(target, cb)
-        local identifier = GetIdentifiers(target)[pluginConfig.identityType]
-        local result = MySQL.Sync.fetchAll("SELECT firstname, lastname, sex, dateofbirth, height, job FROM users WHERE identifier = @identifier", {
-                ['@identifier'] = ("%s%s"):format(pluginConfig.usePrefix and pluginConfig.identityType..":" or "",identifier)
-        })
-        if result ~= nil then
-            local user = result[1]
-            local payload = {
-                firstname = user['firstname'],
-                lastname = user['lastname'],
-                dateofbirth = user['dateofbirth'],
-                sex = user['sex'],
-                height = user['height'],
-                job = user['job']
-            }
-            debugLog("Got identity data: "..json.encode(payload))
+        local xPlayer = ESX.GetPlayerFromId(target)
+        if xPlayer ~= nil then
+            debugLog("GetIdentity OK")
             if cb ~= nil then
-                cb(payload)
+                debugLog("Running callback")
+                cb(xPlayer)
             else
-                TriggerClientEvent('SonoranCAD::esxsupport:returnIdentity', target, payload)
+                debugLog("Running client event")
+                TriggerClientEvent('SonoranCAD::esxsupport:returnIdentity', target, xPlayer)
             end
         else
-            debugLog("No identity found for: "..("%s%s"):format(pluginConfig.usePrefix and pluginConfig.identityType..":" or "",identifier))
+            debugLog("GetIdentity Failed")
             if cb ~= nil then
                 cb({})
             else
@@ -73,16 +66,9 @@ if pluginConfig.enabled then
                 debugLog(("Player %s has no cached job"):format(player))
             end
         end
-        local identifier = GetIdentifiers(player)[pluginConfig.identityType]
-        local result = MySQL.Sync.fetchAll("SELECT job FROM es_extended.users WHERE identifier = @identifier", {
-                ['@identifier'] = ("%s%s"):format(pluginConfig.usePrefix and pluginConfig.identityType..":" or "",identifier)
-        })
-        local currentJob = nil
-        if result ~= nil then
-            currentJob = result[1]['job']
-        else
-            warnLog("Unable to find job: "..("%s%s"):format(pluginConfig.usePrefix and pluginConfig.identityType..":" or "",identifier))
-        end
+        local xPlayer = ESX.GetPlayerFromId(player)
+        local currentJob = xPlayer.job.name
+        debugLog("Returned job: "..tostring(xPlayer.job.name))
         if cb == nil then
             JobCache[tostring(player)] = currentJob
             return currentJob
@@ -93,12 +79,13 @@ if pluginConfig.enabled then
 
     -- Caching functionality, used locally to reduce database load
     CreateThread(function()
-        for i=0, GetNumPlayerIndices()-1 do
-            local player = GetPlayerFromIndex(i)
-            GetCurrentJob(player, function(job)
-                debugLog(("Set player %s to job %s"):format(player, job))
-                JobCache[tostring(player)] = job
-            end)
+        while ESX == nil do
+            Wait(10)
+        end
+        local xPlayers = ESX.GetPlayers()
+        for i=1, #xPlayers, 1 do
+            local player = ESX.GetPlayerFromId(xPlayers[i])
+            JobCache[tostring(player)] = player.job.name
         end
         Wait(30000)
     end)
