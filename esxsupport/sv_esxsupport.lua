@@ -58,6 +58,7 @@ if pluginConfig.enabled then
 
     -- Helper function that just returns the current job as a callback
     function GetCurrentJob(player, cb)
+        local currentJob = ""
         if cb == nil then
             if JobCache[tostring(player)] ~= nil then
                 debugLog("Return cached player")
@@ -67,8 +68,12 @@ if pluginConfig.enabled then
             end
         end
         local xPlayer = ESX.GetPlayerFromId(player)
-        local currentJob = xPlayer.job.name
-        debugLog("Returned job: "..tostring(xPlayer.job.name))
+        if xPlayer == nil then
+            warnLog(("Failed to obtain player info from %s. ESX.GetPlayerFromId returned nil."):format(player))
+        else
+            currentJob = xPlayer.job.name
+            debugLog("Returned job: "..tostring(xPlayer.job.name))
+        end
         if cb == nil then
             JobCache[tostring(player)] = currentJob
             return currentJob
@@ -85,7 +90,11 @@ if pluginConfig.enabled then
         local xPlayers = ESX.GetPlayers()
         for i=1, #xPlayers, 1 do
             local player = ESX.GetPlayerFromId(xPlayers[i])
-            JobCache[tostring(player)] = player.job.name
+            if player == nil then
+                debugLog("Failed to obtain job from player "..tostring(xPlayers[i]))
+            else
+                JobCache[tostring(player)] = player.job.name
+            end
         end
         Wait(30000)
     end)

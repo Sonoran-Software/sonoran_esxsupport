@@ -1,5 +1,5 @@
 {
-    "version": "1.1.0",
+    "version": "1.1.1",
     "check_url": "https://raw.githubusercontent.com/Sonoran-Software/sonoran_esxsupport/main/esxsupport/version_esxsupport.json",
     "download_url": "https://github.com/Sonoran-Software/sonoran_esxsupport/releases",
     "configVersion": "1.0"
