@@ -13,7 +13,7 @@ local pluginConfig = Config.GetPluginConfig("esxsupport")
 if pluginConfig.enabled then
 
     Citizen.CreateThread(function()
-        while Config.serverType == nil do
+        while Config.primaryIdentifier == nil do
             Wait(10)
         end
         ---------------------------------------------------------------------------
