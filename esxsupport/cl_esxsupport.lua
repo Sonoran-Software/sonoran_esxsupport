@@ -13,9 +13,6 @@ local pluginConfig = Config.GetPluginConfig("esxsupport")
 if pluginConfig.enabled then
 
     Citizen.CreateThread(function()
-        while Config.primaryIdentifier == nil do
-            Wait(10)
-        end
         ---------------------------------------------------------------------------
         -- ESX Integration Initialization/Events/Functions
         ---------------------------------------------------------------------------
@@ -53,7 +50,7 @@ if pluginConfig.enabled then
         local recievedIdentity = false
         returnedIdentity = nil
         RegisterNetEvent('SonoranCAD::esxsupport:returnIdentity')
-        AddEventHandler('sonorancad:returnIdentity', function(data)
+        AddEventHandler('SonoranCAD::esxsupport:returnIdentity', function(data)
             recievedIdentity = true
             if data.job == nil then
                 warnLog("Warning: no identity data was found.")
