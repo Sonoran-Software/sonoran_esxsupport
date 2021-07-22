@@ -1,1 +1,1 @@
-This is just a template plugin. To learn how to use, see PLUGINS.md.
+Enable using ESX (or ESX clones) character information in Sonoran integration plugins
