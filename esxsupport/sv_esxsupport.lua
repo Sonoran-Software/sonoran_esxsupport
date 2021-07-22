@@ -1,11 +1,9 @@
 --[[
     Sonaran CAD Plugins
 
-    Plugin Name: template
-    Creator: template
-    Description: Describe your plugin here
-
-    Put all server-side logic in this file.
+    Plugin Name: esxsupport
+    Creator: Sonoran Software Systems LLC
+    Description: Enable using ESX (or ESX clones) character information in Sonoran integration plugins
 ]]
 
 local pluginConfig = Config.GetPluginConfig("esxsupport")
@@ -20,14 +18,18 @@ if pluginConfig.enabled then
         local waited = 0
         while waited < 5 do
             if ESX == nil then
-                TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
+                if pluginConfig.usingQbus then
+                    TriggerEvent(pluginConfig.QbusEventName .. ':GetObject', function(obj) ESX = obj end)
+                else
+                    TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
+                end
                 Wait(1000)
                 debugLog("Waiting for ESX...")
             end
             waited = waited + 1
         end
         if ESX == nil then
-            errorLog("[sonoran_esxsupport] ESX is not configured correctly, but you're attempting to use the ESX support plugin. Please set up ESX or disable this plugin.")
+            errorLog("[sonoran_esxsupport] ESX is not configured correctly, but you're attempting to use the ESX support plugin. Please set up ESX or disable this plugin. Check the esxsupport plugin config for errors if you believe you have set up ESX correctly.")
             return
         else
             infoLog("ESX support loaded successfully.")
@@ -36,9 +38,19 @@ if pluginConfig.enabled then
 
     -- Helper function to get the ESX Identity object from your database
     function GetIdentity(target, cb)
-        local xPlayer = ESX.GetPlayerFromId(target)
+        local xPlayer = nil
+        if pluginConfig.usingQbus then
+            xPlayer = ESX.Functions.GetPlayer(target) -- Yes I know it says ESX... QBUS is ESX in disguise kappa
+        else
+            xPlayer = ESX.GetPlayerFromId(target)
+        end
         if xPlayer ~= nil then
             debugLog("GetIdentity OK")
+            if pluginConfig.usingQbus then
+                xPlayer.firstName = xPlayer.PlayerData.charinfo.firstname
+                xPlayer.lastName = xPlayer.PlayerData.charinfo.lastname
+                xPlayer.name = xPlayer.firstName .. ' ' .. xPlayer.lastName
+            end
             if cb ~= nil then
                 debugLog("Running callback")
                 cb(xPlayer)
@@ -67,16 +79,32 @@ if pluginConfig.enabled then
                 debugLog(("Player %s has no cached job"):format(player))
             end
         end
-        local xPlayer = ESX.GetPlayerFromId(player)
+        local xPlayer = nil
+        if pluginConfig.usingQbus then
+            xPlayer = ESX.Functions.GetPlayer(tonumber(player))
+        else
+            xPlayer = ESX.GetPlayerFromId(player)
+        end
         if xPlayer == nil then
             warnLog(("Failed to obtain player info from %s. ESX.GetPlayerFromId returned nil."):format(player))
         else
-            currentJob = xPlayer.job.name
-            debugLog("Returned job: "..tostring(xPlayer.job.name))
+            if pluginConfig.usingQbus then
+                if not xPlayer.PlayerData.job.onduty then -- QBUS job.onduty is false when on duty??? okayyyyy
+                    currentJob = xPlayer.PlayerData.job.name
+                else
+                    currentJob = 'offduty' .. xPlayer.PlayerData.job.name
+                end
+            else
+                currentJob = xPlayer.job.name
+            end
+            debugLog("Returned job: "..tostring(currentJob))
         end
         if cb == nil then
             JobCache[tostring(player)] = currentJob
             return currentJob
+        elseif cb == true then
+            JobCache[tostring(player)] = currentJob
+            debugLog('refreshed job cache for player '..player..'-'..currentJob)
         else
             cb(currentJob)
         end
@@ -87,13 +115,31 @@ if pluginConfig.enabled then
         while ESX == nil do
             Wait(10)
         end
-        local xPlayers = ESX.GetPlayers()
+        local xPlayers = nil
+        if pluginConfig.usingQbus then
+            xPlayers = ESX.Functions.GetPlayers()
+        else
+            xPlayers = ESX.GetPlayers()
+        end
         for i=1, #xPlayers, 1 do
-            local player = ESX.GetPlayerFromId(xPlayers[i])
+            local player = nil
+            if pluginConfig.usingQbus then
+                player = ESX.Functions.GetPlayer(tonumber(xPlayers[i]))
+            else
+                player = ESX.GetPlayerFromId(xPlayers[i])
+            end
             if player == nil then
                 debugLog("Failed to obtain job from player "..tostring(xPlayers[i]))
             else
-                JobCache[tostring(player)] = player.job.name
+                if pluginConfig.usingQbus then
+                    if not player.PlayerData.job.onduty then
+                        JobCache[tostring(player)] = player.PlayerData.job.name
+                    else
+                        JobCache[tostring(player)] = 'offduty' .. player.PlayerData.job.name
+                    end
+                else
+                    JobCache[tostring(player)] = player.job.name
+                end
             end
         end
         Wait(30000)
@@ -107,6 +153,13 @@ if pluginConfig.enabled then
     RegisterNetEvent('SonoranCAD::esxsupport:getIdentity')
     AddEventHandler('SonoranCAD::esxsupport:getIdentity', function()
         GetIdentity(source)
+    end)
+
+    -- Event for clients to trigger job refresh on server (primarily for QBUS onduty handling)
+    RegisterNetEvent('SonoranCAD::esxsupport:refreshJobCache')
+    AddEventHandler('SonoranCAD::esxsupport:refreshJobCache', function()
+        local src = source
+        GetCurrentJob(src,true)
     end)
 
 end

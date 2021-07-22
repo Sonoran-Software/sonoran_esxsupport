@@ -1,11 +1,9 @@
 --[[
     Sonaran CAD Plugins
 
-    Plugin Name: template
-    Creator: template
-    Description: Describe your plugin here
-
-    Put all client-side logic in this file.
+    Plugin Name: esxsupport
+    Creator: Sonoran Software Systems LLC
+    Description: Enable using ESX (or ESX clones) character information in Sonoran integration plugins
 ]]
 
 local pluginConfig = Config.GetPluginConfig("esxsupport")
@@ -22,28 +20,70 @@ if pluginConfig.enabled then
 
         Citizen.CreateThread(function()
             while ESX == nil do
-                TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
+                if pluginConfig.usingQbus then
+                    TriggerEvent(pluginConfig.QbusEventName .. ':GetObject', function(obj) ESX = obj end)
+                else
+                    TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
+                end
                 Citizen.Wait(10)
             end
 
-            while ESX.GetPlayerData() == nil do
-                Citizen.Wait(10)
+            if pluginConfig.usingQbus then
+                while ESX.Functions.GetPlayerData() == nil do
+                    Citizen.Wait(10)
+                end
+                PlayerData = ESX.Functions.GetPlayerData()
+            else
+                while ESX.GetPlayerData() == nil do
+                    Citizen.Wait(10)
+                end
+                PlayerData = ESX.GetPlayerData()
             end
-
-            PlayerData = ESX.GetPlayerData()
         end)
 
-            -- Listen for when new players load into the game
+        -- Listen for when new players load into the game
         RegisterNetEvent('esx:playerLoaded')
         AddEventHandler('esx:playerLoaded', function(xPlayer)
-            PlayerData = xPlayer
+            if pluginConfig.usingQbus then
+                PlayerData = ESX.Functions.GetPlayerData()
+            else
+                PlayerData = xPlayer
+            end
         end)
         -- Listen for when jobs are changed in esx_jobs
-        RegisterNetEvent('esx:setJob')
-        AddEventHandler('esx:setJob', function(job)
-            PlayerData.job = job
-            TriggerEvent('SonoranCAD::esxsupport:JobUpdate', job)
-        end)
+        if pluginConfig.usingQbus then
+            RegisterNetEvent(pluginConfig.QbusEventName .. ':Client:OnJobUpdate')
+            AddEventHandler(pluginConfig.QbusEventName .. ':Client:OnJobUpdate', function(job)
+                PlayerData.job = job
+                if PlayerData.job.onduty == true then -- QBUS job.onduty is false when on duty??? okayyyyy
+                    PlayerData.job.name = 'offduty' .. PlayerData.job.name
+                end
+                TriggerServerEvent('SonoranCAD::esxsupport:refreshJobCache')
+                TriggerEvent('SonoranCAD::esxsupport:JobUpdate', job)
+            end)
+        else
+            RegisterNetEvent('esx:setJob')
+            AddEventHandler('esx:setJob', function(job)
+                PlayerData.job = job
+                TriggerServerEvent('SonoranCAD::esxsupport:refreshJobCache')
+                TriggerEvent('SonoranCAD::esxsupport:JobUpdate', job)
+            end)
+        end
+        -- QBUS onduty change (ESX typically uses jobs to change duty instead)
+        if pluginConfig.usingQbus then
+            RegisterNetEvent(pluginConfig.QbusEventName .. ':Client:SetDuty')
+            AddEventHandler(pluginConfig.QbusEventName .. ':Client:SetDuty', function(onduty)
+                local job = PlayerData.job
+                if onduty then
+                    job.name = string.gsub(job.name,'offduty','')
+                else
+                    job.name = 'offduty' .. job.name
+                end
+                PlayerData.job = job
+                TriggerServerEvent('SonoranCAD::esxsupport:refreshJobCache')
+                TriggerEvent('SonoranCAD::esxsupport:JobUpdate', job)
+            end)
+        end
 
         -- Function to return esx_identity data on the client from server
         -- This event listens for data from the server when requested
