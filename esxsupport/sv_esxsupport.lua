@@ -162,4 +162,58 @@ if pluginConfig.enabled then
         GetCurrentJob(src,true)
     end)
 
+    -- EVENT_RECORD_ADDED
+    RegisterServerEvent('SonoranCAD::pushevents:RecordAdded')
+    AddEventHandler('SonoranCAD::pushevents:RecordAdded', function(record)
+        if not pluginConfig.issueFines then return end
+        debugLog("Processing new record")        
+        local citation = {} -- first, last, fine
+        for k, sec in pairs(record.sections) do
+            for _, field in pairs(sec.fields) do
+                if field.data.fine then
+                    citation.fine = field.data.fine
+                    debugLog("Fine = " .. field.data.fine)
+                else
+                    if field.uid == 'first' then
+                        citation.first = field.value
+                        debugLog("First Name =" .. citation.first)
+                    end
+                    if field.uid == 'last' then
+                        citation.last = field.value
+                        debugLog("Last Name =" .. citation.last)
+                    end
+                    -- Fines from other fields not yet implemented.
+                    -- if pluginConfig.finesOther and (field.uid == pluginConfig.finesOtherField) then
+                    --     citation.fine = field.value
+                    --     debugLog("Fine Other = " .. citation.fine)
+                    -- end
+                end
+            end
+        end
+        if not citation.first or not citation.last or not citation.fine then return end
+
+        local xPlayers = ESX.GetPlayers()
+
+        for i=1, #xPlayers, 1 do
+            local xPlayer = ESX.GetPlayerFromId(xPlayers[i])
+            if xPlayer.getName() == citation.first .. ' ' .. citation.last then
+                xPlayer.removeAccountMoney('bank', tonumber(citation.fine))
+                TriggerClientEvent("pNotify:SendNotification", -1, {
+                    text ="You have been fined $" .. citation.fine .. ".",
+                    type = "error",
+                    queue = "sonorancad",
+                    timeout = 10000,
+                    layout = "bottomCenter"
+                })
+                if pluginConfig.fineNotify then
+                    ESX.SavePlayer(xPlayer)
+                    TriggerClientEvent('chat:addMessage', -1, {
+                        color = { 255, 0, 0},
+                        multiline = true,
+                        args = { xPlayer.getName() .. ' has been fined $' .. citation.fine }
+                    })
+                end
+            end
+        end
+    end)
 end
