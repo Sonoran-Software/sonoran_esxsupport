@@ -109,6 +109,14 @@ if pluginConfig.enabled then
             end
             callback(returnedIdentity)
         end
+
+        -- Listen for fines being issued to player.
+        RegisterNetEvent('SonoranCAD::esxsupport:issueFine')
+        AddEventHandler('SonoranCAD::esxsupport:issueFine', function(xPlayer, amount)
+            debugLog('Attempted to bill ' .. GetPlayerServerId(PlayerId()) .. ' $' .. amount )
+            TriggerServerEvent('esx_billing:sendBill', GetPlayerServerId(PlayerId()), 'society_police', 'CustomFine', amount)
+        end)
+        
     end)
     
 

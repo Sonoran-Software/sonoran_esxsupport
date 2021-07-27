@@ -166,13 +166,21 @@ if pluginConfig.enabled then
     RegisterServerEvent('SonoranCAD::pushevents:RecordAdded')
     AddEventHandler('SonoranCAD::pushevents:RecordAdded', function(record)
         if not pluginConfig.issueFines then return end
-        debugLog("Processing new record")        
-        local citation = {} -- first, last, fine
+        debugLog("Processing new record")
+        debugLog(json.encode(record))
+        local index = 1
+        local citation = {
+            first = nil,
+            last = nil,
+            fine = 0
+        } -- first, last, fine
         for k, sec in pairs(record.sections) do
             for _, field in pairs(sec.fields) do
+                debugLog(index .. json.encode(field))
+                index = index+1
                 if field.data.fine then
-                    citation.fine = field.data.fine
-                    debugLog("Fine = " .. field.data.fine)
+                    citation.fine = citation.fine + tonumber(field.data.fine)
+                    debugLog("Added Speeding Fine of:" .. field.data.fine)
                 else
                     if field.uid == 'first' then
                         citation.first = field.value
@@ -182,11 +190,15 @@ if pluginConfig.enabled then
                         citation.last = field.value
                         debugLog("Last Name =" .. citation.last)
                     end
-                    -- Fines from other fields not yet implemented.
-                    -- if pluginConfig.finesOther and (field.uid == pluginConfig.finesOtherField) then
-                    --     citation.fine = field.value
-                    --     debugLog("Fine Other = " .. citation.fine)
-                    -- end
+                    if field.label == 'New Field Name' then
+                        local charges = field.data.charges
+                        if charges then
+                            for _, charge in pairs(charges) do
+                                debugLog('Added additional charge of $' .. charge.arrestBondAmount .. ' for ' .. charge.arrestCharge)
+                                citation.fine = citation.fine + tonumber(charge.arrestBondAmount)
+                            end
+                        end
+                    end
                 end
             end
         end
@@ -197,9 +209,13 @@ if pluginConfig.enabled then
         for i=1, #xPlayers, 1 do
             local xPlayer = ESX.GetPlayerFromId(xPlayers[i])
             if xPlayer.getName() == citation.first .. ' ' .. citation.last then
-                xPlayer.removeAccountMoney('bank', tonumber(citation.fine))
+                if pluginConfig.useBilling then
+                    xPlayer.triggerEvent('SonoranCAD::esxsupport:issueFine', xPlayer, citation.fine)
+                else
+                    xPlayer.removeAccountMoney('bank', citation.fine)
+                end
                 TriggerClientEvent("pNotify:SendNotification", -1, {
-                    text ="You have been fined $" .. citation.fine .. ".",
+                    text ="You have been issued a fine of $" .. citation.fine .. ".",
                     type = "error",
                     queue = "sonorancad",
                     timeout = 10000,
@@ -210,7 +226,7 @@ if pluginConfig.enabled then
                     TriggerClientEvent('chat:addMessage', -1, {
                         color = { 255, 0, 0},
                         multiline = true,
-                        args = { xPlayer.getName() .. ' has been fined $' .. citation.fine }
+                        args = { xPlayer.getName() .. ' has been issued a fine of $' .. citation.fine }
                     })
                 end
             end
