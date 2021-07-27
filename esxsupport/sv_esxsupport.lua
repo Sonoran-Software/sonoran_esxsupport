@@ -214,13 +214,6 @@ if pluginConfig.enabled then
                 else
                     xPlayer.removeAccountMoney('bank', citation.fine)
                 end
-                TriggerClientEvent("pNotify:SendNotification", -1, {
-                    text ="You have been issued a fine of $" .. citation.fine .. ".",
-                    type = "error",
-                    queue = "sonorancad",
-                    timeout = 10000,
-                    layout = "bottomCenter"
-                })
                 if pluginConfig.fineNotify then
                     ESX.SavePlayer(xPlayer)
                     TriggerClientEvent('chat:addMessage', -1, {
