@@ -23,9 +23,10 @@ local config = {
     QbusEventName = "QBCore",
 
     -- Fine payment system
-    issueFines = true,      -- Use the fine system
-    useBilling = false,     -- Use esx_billing, if set to false, will withdraw directly from bank (Not Ready for Prime Time)
-    fineNotify = true       -- Send a message in chat when someone is fined.
+    issueFines = true,                  -- Use the fine system
+    useBilling = false,                 -- Use esx_billing, if set to false, will withdraw directly from bank (Not Ready for Prime Time)
+    fineNotify = true,                  -- Send a message in chat when someone is fined.
+    fineableForms = {"Arrest Report"}   -- List of form names that should issue fines (Don't Include Warrants or Bolos)
 }
 
 if config.enabled then

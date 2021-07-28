@@ -170,57 +170,77 @@ if pluginConfig.enabled then
         debugLog(json.encode(record))
         local index = 1
         local citation = {
+            issuer = nil,
             first = nil,
             last = nil,
             fine = 0
-        } -- first, last, fine
-        for k, sec in pairs(record.sections) do
-            for _, field in pairs(sec.fields) do
-                debugLog(index .. json.encode(field))
-                index = index+1
-                if field.data.fine then
-                    citation.fine = citation.fine + tonumber(field.data.fine)
-                    debugLog("Added Speeding Fine of:" .. field.data.fine)
-                else
-                    if field.uid == 'first' then
-                        citation.first = field.value
-                        debugLog("First Name =" .. citation.first)
-                    end
-                    if field.uid == 'last' then
-                        citation.last = field.value
-                        debugLog("Last Name =" .. citation.last)
-                    end
-                    if field.label == 'New Field Name' then
-                        local charges = field.data.charges
-                        if charges then
-                            for _, charge in pairs(charges) do
-                                debugLog('Added additional charge of $' .. charge.arrestBondAmount .. ' for ' .. charge.arrestCharge)
-                                citation.fine = citation.fine + tonumber(charge.arrestBondAmount)
+        } -- issuer, first, last, fine
+        local isFineable = false
+        for _, formName in pairs(pluginConfig.fineableForms) do
+            if record.name:upper() == formName:upper() then isFineable = true end
+        end
+        if isFineable then
+            for k, sec in pairs(record.sections) do
+                for _, field in pairs(sec.fields) do
+                    debugLog(index .. json.encode(field))
+                    index = index+1
+                    if field.data.fine then
+                        citation.fine = citation.fine + tonumber(field.data.fine)
+                        debugLog("Added Speeding Fine of:" .. field.data.fine)
+                    else
+                        if field.uid == 'first' then
+                            citation.first = field.value
+                            debugLog("First Name =" .. citation.first)
+                        end
+                        if field.uid == 'last' then
+                            citation.last = field.value
+                            debugLog("Last Name =" .. citation.last)
+                        end
+                        if field.label == 'New Field Name' then
+                            if field.data then
+                                if field.data.charges then
+                                    for _, charge in pairs(field.data.charges) do
+                                        debugLog('Added additional charge of $' .. charge.arrestBondAmount .. ' for ' .. charge.arrestCharge)
+                                        citation.fine = citation.fine + tonumber(charge.arrestBondAmount)
+                                    end
+                                end
+                                if field.data.officer then
+                                    citation.issuer = field.data.officer
+                                    debugLog("Fine Issuer = " .. citation.issuer)
+                                end
                             end
                         end
                     end
                 end
             end
-        end
-        if not citation.first or not citation.last or not citation.fine then return end
+            if not citation.first or not citation.last or not citation.fine then return end
 
-        local xPlayers = ESX.GetPlayers()
+            local xPlayers = ESX.GetPlayers()
 
-        for i=1, #xPlayers, 1 do
-            local xPlayer = ESX.GetPlayerFromId(xPlayers[i])
-            if xPlayer.getName() == citation.first .. ' ' .. citation.last then
-                if pluginConfig.useBilling then
-                    xPlayer.triggerEvent('SonoranCAD::esxsupport:issueFine', xPlayer, citation.fine)
-                else
-                    xPlayer.removeAccountMoney('bank', citation.fine)
-                end
-                if pluginConfig.fineNotify then
-                    ESX.SavePlayer(xPlayer)
-                    TriggerClientEvent('chat:addMessage', -1, {
-                        color = { 255, 0, 0},
-                        multiline = true,
-                        args = { xPlayer.getName() .. ' has been issued a fine of $' .. citation.fine }
-                    })
+            for i=1, #xPlayers, 1 do
+                local xPlayer = ESX.GetPlayerFromId(xPlayers[i])
+                if xPlayer.getName() == citation.first .. ' ' .. citation.last then
+                    if pluginConfig.useBilling then
+                        xPlayer.triggerEvent('SonoranCAD::esxsupport:issueFine', xPlayer, citation.fine)
+                    else
+                        xPlayer.removeAccountMoney('bank', citation.fine)
+                    end
+                    if pluginConfig.fineNotify then
+                        ESX.SavePlayer(xPlayer)
+                        if citation.issuer ~= nil then
+                            TriggerClientEvent('chat:addMessage', -1, {
+                                color = { 255, 0, 0},
+                                multiline = true,
+                                args = { xPlayer.getName() .. ' has been issued a fine of $' .. citation.fine .. ' by ' .. citation.issuer }
+                            })
+                        else
+                            TriggerClientEvent('chat:addMessage', -1, {
+                                color = { 255, 0, 0},
+                                multiline = true,
+                                args = { xPlayer.getName() .. ' has been issued a fine of $' .. citation.fine }
+                            })
+                        end
+                    end
                 end
             end
         end
