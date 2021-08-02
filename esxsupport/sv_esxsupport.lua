@@ -225,14 +225,8 @@ if pluginConfig.enabled then
             for i=1, #xPlayers, 1 do
                 local xPlayer = ESX.GetPlayerFromId(xPlayers[i])
                 if xPlayer.getName() == citation.first .. ' ' .. citation.last then
-                    -- Issue the fine to the player, either by billing or direct withdrawl
-                    if pluginConfig.useBilling then
-                        errorLog("Billing system is not yet implemented. Please disable it in the config.")
-                        --xPlayer.triggerEvent('SonoranCAD::esxsupport:issueFine', xPlayer, citation.fine)
-                    else
-                        xPlayer.removeAccountMoney('bank', citation.fine)
-                        ESX.SavePlayer(xPlayer)
-                    end
+                    xPlayer.removeAccountMoney('bank', citation.fine)
+                    ESX.SavePlayer(xPlayer)
                     -- Send a notification message to the server that the fine has been issued and who issued the fine.
                     if pluginConfig.fineNotify then
                         -- Set the message to be displayed to the users.
