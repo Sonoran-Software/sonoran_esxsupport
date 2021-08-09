@@ -8,7 +8,7 @@
 ]]
 local config = {
     enabled = false,
-    configVersion = "2.0",
+    configVersion = "3.0",
     pluginName = "esxsupport", -- name your plugin here
     pluginAuthor = "SonoranCAD", -- author
     requiresPlugins = {}, -- required plugins for this plugin to work, separated by commas
@@ -20,7 +20,12 @@ local config = {
     -- Use QBUS (a renamed ESX with some changes)? Set this to "true"
     usingQbus = false,
     -- Have a renamed QBUS Framework? (like RepentzFW) change the "QBCore" name here to whatever the event name uses
-    QbusEventName = "QBCore"
+    QbusEventName = "QBCore",
+
+    -- Fine payment system
+    issueFines = false,                 -- Use the fine system
+    fineNotify = false,                 -- Send a message in chat when someone is fined.
+    fineableForms = {"Arrest Report"}   -- List of form names that should issue fines (Don't Include Warrants or Bolos)
 }
 
 if config.enabled then

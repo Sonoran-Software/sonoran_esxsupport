@@ -109,6 +109,7 @@ if pluginConfig.enabled then
             end
             callback(returnedIdentity)
         end
+        
     end)
     
 
