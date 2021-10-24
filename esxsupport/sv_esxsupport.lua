@@ -32,7 +32,7 @@ if pluginConfig.enabled then
                 debugLog("Waiting for ESX...")
             end
             waited = waited + 1
-            if waited == 5 then
+            if waited == 5 and method == 1 then
                 method = 2
                 waited = 0
             end
