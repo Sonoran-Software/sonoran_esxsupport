@@ -6,7 +6,7 @@
     Description: Enable using ESX (or ESX clones) character information in Sonoran integration plugins
 ]]
 
-local pluginConfig = Config.GetPluginConfig("esxsupport")
+CreateThread(function() Config.LoadPlugin("esxsupport", function(pluginConfig))
 
 if pluginConfig.enabled then
 
@@ -16,10 +16,15 @@ if pluginConfig.enabled then
 
     CreateThread(function()
         local waited = 0
+        local method = 1
         while waited < 5 do
             if ESX == nil then
                 if pluginConfig.usingQbus then
-                    TriggerEvent(pluginConfig.QbusEventName .. ':GetObject', function(obj) ESX = obj end)
+                    if method == 1 then 
+                        TriggerEvent(pluginConfig.QbusEventName .. ':GetObject', function(obj) ESX = obj end)
+                    else
+                        ESX = exports[QbusResourceName]:GetCoreObject()
+                    end
                 else
                     TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
                 end
@@ -27,12 +32,16 @@ if pluginConfig.enabled then
                 debugLog("Waiting for ESX...")
             end
             waited = waited + 1
+            if waited == 5 then
+                method = 2
+                waited = 0
+            end
         end
         if ESX == nil then
             errorLog("[sonoran_esxsupport] ESX is not configured correctly, but you're attempting to use the ESX support plugin. Please set up ESX or disable this plugin. Check the esxsupport plugin config for errors if you believe you have set up ESX correctly.")
             return
         else
-            infoLog("ESX support loaded successfully.")
+            infoLog(("ESX support loaded successfully. Using mode %s, method %s."):format(pluginConfig.usingQbus ? "QBus" : "ESX", method))
         end
     end)
 
@@ -244,3 +253,5 @@ if pluginConfig.enabled then
         end
     end)
 end
+
+end) end)

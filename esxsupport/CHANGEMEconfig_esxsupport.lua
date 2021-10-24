@@ -8,7 +8,7 @@
 ]]
 local config = {
     enabled = false,
-    configVersion = "3.0",
+    configVersion = "4.0",
     pluginName = "esxsupport", -- name your plugin here
     pluginAuthor = "SonoranCAD", -- author
     requiresPlugins = {}, -- required plugins for this plugin to work, separated by commas
@@ -21,6 +21,8 @@ local config = {
     usingQbus = false,
     -- Have a renamed QBUS Framework? (like RepentzFW) change the "QBCore" name here to whatever the event name uses
     QbusEventName = "QBCore",
+    -- If using qbus, enter the name of the core resource (such as qb-core)
+    QbusResourceName = "qb-core",
 
     -- Fine payment system
     issueFines = false,                 -- Use the fine system
