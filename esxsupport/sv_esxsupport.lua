@@ -41,7 +41,7 @@ if pluginConfig.enabled then
             errorLog("[sonoran_esxsupport] ESX is not configured correctly, but you're attempting to use the ESX support plugin. Please set up ESX or disable this plugin. Check the esxsupport plugin config for errors if you believe you have set up ESX correctly.")
             return
         else
-            infoLog(("ESX support loaded successfully. Using mode %s, method %s."):format(pluginConfig.usingQbus ? "QBus" : "ESX", method))
+            infoLog("ESX support loaded successfully.")
         end
     end)
 
