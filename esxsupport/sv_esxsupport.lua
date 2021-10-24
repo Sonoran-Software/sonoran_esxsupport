@@ -23,7 +23,7 @@ if pluginConfig.enabled then
                     if method == 1 then 
                         TriggerEvent(pluginConfig.QbusEventName .. ':GetObject', function(obj) ESX = obj end)
                     else
-                        ESX = exports[QbusResourceName]:GetCoreObject()
+                        ESX = exports[pluginConfig.QbusResourceName]:GetCoreObject()
                     end
                 else
                     TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
