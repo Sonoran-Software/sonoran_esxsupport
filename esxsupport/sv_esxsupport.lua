@@ -199,6 +199,8 @@ if pluginConfig.enabled then
                     if field.uid == 'first' then citation.first = field.value end
                     -- Store the last name of the fine target
                     if field.uid == 'last' then citation.last = field.value end
+                    -- Retrieve the new Unit Name from the Agency Information
+                    if field.type == 'UNIT_NAME' then citation.issuer = field.value end
                     -- Get "Special" fields from the report
                     if field.label == 'New Field Name' then
                         if field.data then
