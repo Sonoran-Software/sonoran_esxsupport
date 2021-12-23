@@ -214,8 +214,9 @@ if pluginConfig.enabled then
                             -- Get and add other charges to the citation
                             if field.data.charges then
                                 for _, charge in pairs(field.data.charges) do
-                                    citation.fine = citation.fine + tonumber(charge.arrestBondAmount)
-                                    debugLog('Added fine of $' .. charge.arrestBondAmount .. ' for ' .. charge.arrestCharge)
+                                    local fineTotal = tonumber(charge.arrestBondAmount) * charge.arrestChargeCounts
+                                    citation.fine = citation.fine + (fineTotal)
+                                    debugLog('Added fine of $' .. fineTotal .. ' for ' .. charge.arrestChargeCounts .. ' counts of ' .. charge.arrestCharge)                                end
                                 end
                             end
                         end
