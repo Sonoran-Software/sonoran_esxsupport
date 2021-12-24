@@ -233,7 +233,26 @@ if pluginConfig.enabled then
             if citation.first == '' or citation.last == '' then return end
 
             -- Find the civilian that matches the citation and issue them a fine.
-            
+            local xPlayers = ESX.GetPlayers()
+            for i=1, #xPlayers, 1 do
+                local xPlayer = ESX.GetPlayerFromId(xPlayers[i])
+                if xPlayer.getName() == citation.first .. ' ' .. citation.last then
+                    xPlayer.removeAccountMoney('bank', citation.fine)
+                    ESX.SavePlayer(xPlayer)
+                    -- Send a notification message to the server that the fine has been issued and who issued the fine.
+                    if pluginConfig.fineNotify then
+                        -- Set the message to be displayed to the users.
+                        local finemessage = xPlayer.getName() .. ' has been issued a fine of $' .. citation.fine
+                        -- Add issuers name if present
+                        if citation.issuer ~= '' then finemessage = finemessage .. ' by ' .. citation.issuer end
+                        TriggerClientEvent('chat:addMessage', -1, {
+                            color = { 255, 0, 0 },
+                            multiline = true,
+                            args = { finemessage }
+                        })
+                    end
+                end
+            end
         end
     end)
 end
