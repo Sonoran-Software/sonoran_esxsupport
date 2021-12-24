@@ -209,14 +209,14 @@ if pluginConfig.enabled then
                             -- Get and add speeding charges to the citation
                             if field.data.fine then
                                 citation.fine = citation.fine + tonumber(field.data.fine)
-                                debugLog("Added fine of $" .. field.data.fine .. ' for ' .. field.data.vehicleSpeed .. ' in a ' .. field.data.speedLimit .. 'zone.')
+                                debugLog('Added fine of $' .. field.data.fine .. ' for ' .. field.data.vehicleSpeed .. ' in a ' .. field.data.speedLimit .. 'zone.')
                             end
                             -- Get and add other charges to the citation
                             if field.data.charges then
                                 for _, charge in pairs(field.data.charges) do
                                     local fineTotal = tonumber(charge.arrestBondAmount) * charge.arrestChargeCounts
-                                    citation.fine = citation.fine + (fineTotal)
-                                    debugLog('Added fine of $' .. fineTotal .. ' for ' .. charge.arrestChargeCounts .. ' counts of ' .. charge.arrestCharge)                                end
+                                    citation.fine = citation.fine + tonumber(fineTotal)
+                                    debugLog('Added fine of $' .. fineTotal .. ' for ' .. charge.arrestChargeCounts .. ' counts of ' .. charge.arrestCharge)
                                 end
                             end
                         end
@@ -225,34 +225,15 @@ if pluginConfig.enabled then
             end
 
             debugLog("New Citation to Issue:")
-            debugLog("Issuer: " .. citation.issuer)
-            debugLog("Issued To: " .. citation.first .. " " .. citation.last)
-            debugLog("Total Fines: $" .. citation.fine)
+            debugLog("Issuer: " .. tostring(citation.issuer))
+            debugLog("Issued To: " .. tostring(citation.first) .. " " .. tostring(citation.last))
+            debugLog("Total Fines: $" .. tostring(citation.fine))
 
             -- If the citation is missing a first name or a last name we can't issue the fine.
             if citation.first == '' or citation.last == '' then return end
 
             -- Find the civilian that matches the citation and issue them a fine.
-            local xPlayers = ESX.GetPlayers()
-            for i=1, #xPlayers, 1 do
-                local xPlayer = ESX.GetPlayerFromId(xPlayers[i])
-                if xPlayer.getName() == citation.first .. ' ' .. citation.last then
-                    xPlayer.removeAccountMoney('bank', citation.fine)
-                    ESX.SavePlayer(xPlayer)
-                    -- Send a notification message to the server that the fine has been issued and who issued the fine.
-                    if pluginConfig.fineNotify then
-                        -- Set the message to be displayed to the users.
-                        local finemessage = xPlayer.getName() .. ' has been issued a fine of $' .. citation.fine
-                        -- Add issuers name if present
-                        if citation.issuer ~= '' then finemessage = finemessage .. ' by ' .. citation.issuer end
-                        TriggerClientEvent('chat:addMessage', -1, {
-                            color = { 255, 0, 0 },
-                            multiline = true,
-                            args = { finemessage }
-                        })
-                    end
-                end
-            end
+            
         end
     end)
 end
