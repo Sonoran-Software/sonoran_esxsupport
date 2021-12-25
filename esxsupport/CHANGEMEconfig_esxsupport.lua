@@ -27,7 +27,10 @@ local config = {
     -- Fine payment system
     issueFines = false,                 -- Use the fine system
     fineNotify = false,                 -- Send a message in chat when someone is fined.
-    fineableForms = {"Arrest Report"}   -- List of form names that should issue fines (Don't Include Warrants or Bolos)
+    fineableForms = {"Arrest Report"},  -- List of form names that should issue fines (Don't Include Warrants or Bolos)
+
+    -- ESX Legacy Support (Created for and tested using ESX v1.1.0 esx_identity v1.0.2)
+    legacyESX = false                   -- Set to true if default settings do not get character name properly (older esx_identity/ESX legacy versions)
 }
 
 if config.enabled then

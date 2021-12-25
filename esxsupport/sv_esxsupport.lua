@@ -9,6 +9,8 @@
 CreateThread(function() Config.LoadPlugin("esxsupport", function(pluginConfig)
 
 if pluginConfig.enabled then
+    -- Assume non-legacy ESX if setting is missing implemented in v3.1.4
+    if pluginConfig.legacyESX == nil then pluginConfig.legacyESX = false end
 
     ESX = nil
 
@@ -40,12 +42,75 @@ if pluginConfig.enabled then
         if ESX == nil then
             errorLog("[sonoran_esxsupport] ESX is not configured correctly, but you're attempting to use the ESX support plugin. Please set up ESX or disable this plugin. Check the esxsupport plugin config for errors if you believe you have set up ESX correctly.")
             return
+        elseif pluginConfig.legacyESX then
+            infoLog("LEGACY ESX support loaded successfully.")
         else
             infoLog("ESX support loaded successfully.")
         end
     end)
 
-    -- Helper function to get the ESX Identity object from your database
+    -- Legacy ESX helper functions to get Character Info using MySQL-Async
+    local function safeParameters(params)
+        if nil == params then
+            return {[''] = ''}
+        end
+    
+        assert(type(params) == "table", "A table is expected")
+        assert(params[1] == nil, "Parameters should not be an array, but a map (key / value pair) instead")
+    
+        if next(params) == nil then
+            return {[''] = ''}
+        end
+    
+        return params
+    end
+
+    function MysqlAsyncFetchAll(query, params, func)
+        assert(type(query) == "string", "The SQL Query must be a string")
+    
+        exports['mysql-async']:mysql_fetch_all(query, safeParameters(params), func)
+    end
+
+    function MysqlSyncFetchAll(query, params)
+        assert(type(query) == "string", "The SQL Query must be a string")
+    
+        local res = {}
+        local finishedQuery = false
+        exports['mysql-async']:mysql_fetch_all(query, safeParameters(params), function (result)
+            res = result
+            finishedQuery = true
+        end)
+        repeat Citizen.Wait(0) until finishedQuery == true
+        return res
+    end
+
+    function GetLegacyCharInfo(target, callback)
+        local identifier = GetPlayerIdentifiers(target)[1]
+        local result = MysqlSyncFetchAll("SELECT * FROM `users` WHERE `identifier` = @identifier",{['@identifier'] = identifier})
+        if result[1]['firstname'] ~= nil then
+            local data = {
+                identifier = result[1]['identifier'],
+                firstname = result[1]['firstname'],
+                lastname = result[1]['lastname'],
+                dateofbirth = result[1]['dateofbirth'],
+                sex = result[1]['sex'],
+                height = result[1]['height']
+            }
+            callback(data)
+        else
+            local data = {
+                identifier   = identifier,
+                firstname   = '',
+                lastname   = '',
+                dateofbirth = '',
+                sex     = '',
+                height     = ''
+            }
+            callback(data)
+        end
+    end    
+
+    -- Helper function to get the ESX Identity object from your database/framework
     function GetIdentity(target, cb)
         local xPlayer = nil
         if pluginConfig.usingQbus then
@@ -59,6 +124,18 @@ if pluginConfig.enabled then
                 xPlayer.firstName = xPlayer.PlayerData.charinfo.firstname
                 xPlayer.lastName = xPlayer.PlayerData.charinfo.lastname
                 xPlayer.name = xPlayer.firstName .. ' ' .. xPlayer.lastName
+            elseif pluginConfig.legacyESX then
+                -- Get Char info from Database using MySQL-Async
+                GetLegacyCharInfo(target,function(data)
+                    -- debug logging for lookups that find no user data in database
+                    if data.firstname == '' then debugLog('Legacy ESX database lookup found no user data for identifier: ' .. tostring(data.identifier)) end
+                    -- Set quick reference variables
+                    xPlayer.firstname = data.firstname
+                    xPlayer.lastName = data.lastname
+                    xPlayer.name = data.firstname .. ' ' .. data.lastname
+                    -- Adjust xPlayer.getName()
+                    xPlayer.getName = function() return xPlayer.name end
+                end)
             end
             if cb ~= nil then
                 debugLog("Running callback")
@@ -235,23 +312,26 @@ if pluginConfig.enabled then
             -- Find the civilian that matches the citation and issue them a fine.
             local xPlayers = ESX.GetPlayers()
             for i=1, #xPlayers, 1 do
-                local xPlayer = ESX.GetPlayerFromId(xPlayers[i])
-                if xPlayer.getName() == citation.first .. ' ' .. citation.last then
-                    xPlayer.removeAccountMoney('bank', citation.fine)
-                    ESX.SavePlayer(xPlayer)
-                    -- Send a notification message to the server that the fine has been issued and who issued the fine.
-                    if pluginConfig.fineNotify then
-                        -- Set the message to be displayed to the users.
-                        local finemessage = xPlayer.getName() .. ' has been issued a fine of $' .. citation.fine
-                        -- Add issuers name if present
-                        if citation.issuer ~= '' then finemessage = finemessage .. ' by ' .. citation.issuer end
-                        TriggerClientEvent('chat:addMessage', -1, {
-                            color = { 255, 0, 0 },
-                            multiline = true,
-                            args = { finemessage }
-                        })
-                    end
-                end
+                GetIdentity(xPlayers[i],function(xPlayer)
+                    if xPlayer.getName() == citation.first .. ' ' .. citation.last then
+                        debugLog("found player online matching fined character")
+                        xPlayer.removeAccountMoney('bank', citation.fine)
+                        ESX.SavePlayer(xPlayer)
+                        -- Send a notification message to the server that the fine has been issued and who issued the fine.
+                        if pluginConfig.fineNotify then
+                            debugLog("sending fine notification")
+                            -- Set the message to be displayed to the users.
+                            local finemessage = xPlayer.getName() .. ' has been issued a fine of $' .. citation.fine
+                            -- Add issuers name if present
+                            if citation.issuer ~= '' then finemessage = finemessage .. ' by ' .. citation.issuer end
+                            TriggerClientEvent('chat:addMessage', -1, {
+                                color = { 255, 0, 0 },
+                                multiline = true,
+                                args = { finemessage }
+                            })
+                        end
+                    end    
+                end)
             end
         end
     end)
