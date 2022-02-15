@@ -1,53 +1,22 @@
 --[[
     Sonaran CAD Plugins
 
-    Plugin Name: esxsupport
+    Plugin Name: frameworksupport
     Creator: Sonoran Software Systems LLC
     Description: Enable using ESX (or ESX clones) character information in Sonoran integration plugins
 ]]
 
-CreateThread(function() Config.LoadPlugin("esxsupport", function(pluginConfig)
+CreateThread(function() Config.LoadPlugin("frameworksupport", function(pluginConfig)
 
 if pluginConfig.enabled then
-    -- Assume non-legacy ESX if setting is missing implemented in v3.1.4
-    if pluginConfig.legacyESX == nil then pluginConfig.legacyESX = false end
-
-    ESX = nil
-
+    local QBCore = exports['qb-core']:GetCoreObject()
+    TriggerEvent("esx:getSharedObject", function(obj) ESX = obj end)
     JobCache = {}
 
-    CreateThread(function()
-        local waited = 0
-        local method = 1
-        while waited < 5 do
-            if ESX == nil then
-                if pluginConfig.usingQbus then
-                    if method == 1 then 
-                        TriggerEvent(pluginConfig.QbusEventName .. ':GetObject', function(obj) ESX = obj end)
-                    else
-                        ESX = exports[pluginConfig.QbusResourceName]:GetCoreObject()
-                    end
-                else
-                    TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
-                end
-                Wait(1000)
-                debugLog("Waiting for ESX...")
-            end
-            waited = waited + 1
-            if waited == 5 and method == 1 then
-                method = 2
-                waited = 0
-            end
-        end
-        if ESX == nil then
-            errorLog("[sonoran_esxsupport] ESX is not configured correctly, but you're attempting to use the ESX support plugin. Please set up ESX or disable this plugin. Check the esxsupport plugin config for errors if you believe you have set up ESX correctly.")
-            return
-        elseif pluginConfig.legacyESX then
-            infoLog("LEGACY ESX support loaded successfully.")
-        else
-            infoLog("ESX support loaded successfully.")
-        end
-    end)
+    RegisterNetEvent('QBCore:Client:OnPlayerLoaded')
+	AddEventHandler('QBCore:Client:OnPlayerLoaded', function()
+		playerName = QBCore.Functions.GetPlayerData()
+	end)
 
     -- Legacy ESX helper functions to get Character Info using MySQL-Async
     local function safeParameters(params)
@@ -80,7 +49,7 @@ if pluginConfig.enabled then
             res = result
             finishedQuery = true
         end)
-        repeat Citizen.Wait(0) until finishedQuery == true
+        repeat Wait(0) until finishedQuery == true
         return res
     end
 
@@ -113,14 +82,14 @@ if pluginConfig.enabled then
     -- Helper function to get the ESX Identity object from your database/framework
     function GetIdentity(target, cb)
         local xPlayer = nil
-        if pluginConfig.usingQbus then
-            xPlayer = ESX.Functions.GetPlayer(target) -- Yes I know it says ESX... QBUS is ESX in disguise kappa
+        if pluginConfig.usingQBCore then
+            xPlayer = QBCore.Functions.GetPlayer(target)
         else
             xPlayer = ESX.GetPlayerFromId(target)
         end
         if xPlayer ~= nil then
             debugLog("GetIdentity OK")
-            if pluginConfig.usingQbus then
+            if pluginConfig.usingQBCore then
                 xPlayer.firstName = xPlayer.PlayerData.charinfo.firstname
                 xPlayer.lastName = xPlayer.PlayerData.charinfo.lastname
                 xPlayer.name = xPlayer.firstName .. ' ' .. xPlayer.lastName
@@ -142,14 +111,14 @@ if pluginConfig.enabled then
                 cb(xPlayer)
             else
                 debugLog("Running client event")
-                TriggerClientEvent('SonoranCAD::esxsupport:returnIdentity', target, xPlayer)
+                TriggerClientEvent('SonoranCAD::frameworksupport:returnIdentity', target, xPlayer)
             end
         else
             debugLog("GetIdentity Failed")
             if cb ~= nil then
                 cb({})
             else
-                TriggerClientEvent('SonoranCAD::esxsupport:returnIdentity', target, {})
+                TriggerClientEvent('SonoranCAD::frameworksupport:returnIdentity', target, {})
             end
         end
     end
@@ -166,15 +135,15 @@ if pluginConfig.enabled then
             end
         end
         local xPlayer = nil
-        if pluginConfig.usingQbus then
-            xPlayer = ESX.Functions.GetPlayer(tonumber(player))
+        if pluginConfig.usingQBCore then
+            xPlayer = QBCore.Functions.GetPlayer(tonumber(player))
         else
             xPlayer = ESX.GetPlayerFromId(player)
         end
         if xPlayer == nil then
             warnLog(("Failed to obtain player info from %s. ESX.GetPlayerFromId returned nil."):format(player))
         else
-            if pluginConfig.usingQbus then
+            if pluginConfig.usingQBCore then
                 if not xPlayer.PlayerData.job.onduty then -- QBUS job.onduty is false when on duty??? okayyyyy
                     currentJob = xPlayer.PlayerData.job.name
                 else
@@ -202,22 +171,22 @@ if pluginConfig.enabled then
             Wait(10)
         end
         local xPlayers = nil
-        if pluginConfig.usingQbus then
-            xPlayers = ESX.Functions.GetPlayers()
+        if pluginConfig.usingQBCore then
+            xPlayers = QBCore.Functions.GetPlayers()
         else
             xPlayers = ESX.GetPlayers()
         end
         for i=1, #xPlayers, 1 do
             local player = nil
-            if pluginConfig.usingQbus then
-                player = ESX.Functions.GetPlayer(tonumber(xPlayers[i]))
+            if pluginConfig.usingQBCore then
+                player = QBCore.Functions.GetPlayers(tonumber(xPlayers[i]))
             else
                 player = ESX.GetPlayerFromId(xPlayers[i])
             end
             if player == nil then
                 debugLog("Failed to obtain job from player "..tostring(xPlayers[i]))
             else
-                if pluginConfig.usingQbus then
+                if pluginConfig.usingQBCore then
                     if not player.PlayerData.job.onduty then
                         JobCache[tostring(player)] = player.PlayerData.job.name
                     else
@@ -236,14 +205,14 @@ if pluginConfig.enabled then
     end)
 
     -- Event for clients to request esx_identity information from the server
-    RegisterNetEvent('SonoranCAD::esxsupport:getIdentity')
-    AddEventHandler('SonoranCAD::esxsupport:getIdentity', function()
+    RegisterNetEvent('SonoranCAD::frameworksupport:getIdentity')
+    AddEventHandler('SonoranCAD::frameworksupport:getIdentity', function()
         GetIdentity(source)
     end)
 
     -- Event for clients to trigger job refresh on server (primarily for QBUS onduty handling)
-    RegisterNetEvent('SonoranCAD::esxsupport:refreshJobCache')
-    AddEventHandler('SonoranCAD::esxsupport:refreshJobCache', function()
+    RegisterNetEvent('SonoranCAD::frameworksupport:refreshJobCache')
+    AddEventHandler('SonoranCAD::frameworksupport:refreshJobCache', function()
         local src = source
         GetCurrentJob(src,true)
     end)
@@ -310,27 +279,40 @@ if pluginConfig.enabled then
             if citation.first == '' or citation.last == '' then return end
 
             -- Find the civilian that matches the citation and issue them a fine.
-            local xPlayers = ESX.GetPlayers()
+            if pluginConfig.usingQBCore then
+                xPlayers = QBCore.Functions.GetPlayers()
+            else
+                xPlayers = ESX.GetPlayers()
+            end
+
             for i=1, #xPlayers, 1 do
                 GetIdentity(xPlayers[i],function(xPlayer)
-                    if xPlayer.getName() == citation.first .. ' ' .. citation.last then
-                        debugLog("found player online matching fined character")
-                        xPlayer.removeAccountMoney('bank', citation.fine)
-                        ESX.SavePlayer(xPlayer)
-                        -- Send a notification message to the server that the fine has been issued and who issued the fine.
-                        if pluginConfig.fineNotify then
-                            debugLog("sending fine notification")
-                            -- Set the message to be displayed to the users.
-                            local finemessage = xPlayer.getName() .. ' has been issued a fine of $' .. citation.fine
-                            -- Add issuers name if present
-                            if citation.issuer ~= '' then finemessage = finemessage .. ' by ' .. citation.issuer end
-                            TriggerClientEvent('chat:addMessage', -1, {
-                                color = { 255, 0, 0 },
-                                multiline = true,
-                                args = { finemessage }
-                            })
+                    if pluginConfig.usingQBCore then
+                        if xPlayer.PlayerData.charinfo.firstname == citation.first then
+                            if xPlayer.PlayerData.charinfo.lastname == citation.last then
+                                debugLog("found player online matching fined character")
+                                xPlayer.Functions.RemoveMoney('bank', citation.fine)
+                                if pluginConfig.fineNotify then
+                                    debugLog("sending fine notification")
+                                    local finemessage = PlayerData.name() .. ' has been issued a fine of $' .. citation.fine
+                                    if citation.issuer ~= '' then finemessage = finemessage .. ' by ' .. citation.issuer end
+                                    TriggerClientEvent('chat:addMessage', -1, {color = { 255, 0, 0 }, multiline = true, args = { finemessage }})
+                                end
+                            end
                         end
-                    end    
+                    else
+                        if xPlayer.getName() == citation.first .. ' ' .. citation.last then
+                            debugLog("found player online matching fined character")
+                            xPlayer.removeAccountMoney('bank', citation.fine)
+                            ESX.SavePlayer(xPlayer)
+                            if pluginConfig.fineNotify then
+                                debugLog("sending fine notification")
+                                local finemessage = xPlayer.getName() .. ' has been issued a fine of $' .. citation.fine
+                                if citation.issuer ~= '' then finemessage = finemessage .. ' by ' .. citation.issuer end
+                                TriggerClientEvent('chat:addMessage', -1, {color = { 255, 0, 0 },multiline = true,args = { finemessage }})
+                            end
+                        end  
+                    end
                 end)
             end
         end
