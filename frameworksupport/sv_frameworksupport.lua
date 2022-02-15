@@ -279,26 +279,40 @@ if pluginConfig.enabled then
             if citation.first == '' or citation.last == '' then return end
 
             -- Find the civilian that matches the citation and issue them a fine.
-            local xPlayers = QBCore.Functions.GetPlayers()
+            if pluginConfig.usingQBCore then
+                xPlayers = QBCore.Functions.GetPlayers()
+            else
+                xPlayers = ESX.GetPlayers()
+            end
 
             for i=1, #xPlayers, 1 do
                 GetIdentity(xPlayers[i],function(xPlayer)
-                    if xPlayer.PlayerData.charinfo.firstname == citation.first then
-                        if xPlayer.PlayerData.charinfo.lastname == citation.last then
-                            debugLog("found player online matching fined character")
-                            xPlayer.Functions.RemoveMoney('bank', citation.fine)
-                            --QBCore.Player.Save(xPlayer)
-                            -- Send a notification message to the server that the fine has been issued and who issued the fine.
-                            if pluginConfig.fineNotify then
-                                debugLog("sending fine notification")
-                                -- Set the message to be displayed to the users.
-                                local finemessage = PlayerData.name() .. ' has been issued a fine of $' .. citation.fine
-                                -- Add issuers name if present
-                                if citation.issuer ~= '' then finemessage = finemessage .. ' by ' .. citation.issuer end
-                                TriggerClientEvent('chat:addMessage', -1, {color = { 255, 0, 0 }, multiline = true, args = { finemessage }})
+                    if pluginConfig.usingQBCore then
+                        if xPlayer.PlayerData.charinfo.firstname == citation.first then
+                            if xPlayer.PlayerData.charinfo.lastname == citation.last then
+                                debugLog("found player online matching fined character")
+                                xPlayer.Functions.RemoveMoney('bank', citation.fine)
+                                if pluginConfig.fineNotify then
+                                    debugLog("sending fine notification")
+                                    local finemessage = PlayerData.name() .. ' has been issued a fine of $' .. citation.fine
+                                    if citation.issuer ~= '' then finemessage = finemessage .. ' by ' .. citation.issuer end
+                                    TriggerClientEvent('chat:addMessage', -1, {color = { 255, 0, 0 }, multiline = true, args = { finemessage }})
+                                end
                             end
                         end
-                    end    
+                    else
+                        if xPlayer.getName() == citation.first .. ' ' .. citation.last then
+                            debugLog("found player online matching fined character")
+                            xPlayer.removeAccountMoney('bank', citation.fine)
+                            ESX.SavePlayer(xPlayer)
+                            if pluginConfig.fineNotify then
+                                debugLog("sending fine notification")
+                                local finemessage = xPlayer.getName() .. ' has been issued a fine of $' .. citation.fine
+                                if citation.issuer ~= '' then finemessage = finemessage .. ' by ' .. citation.issuer end
+                                TriggerClientEvent('chat:addMessage', -1, {color = { 255, 0, 0 },multiline = true,args = { finemessage }})
+                            end
+                        end  
+                    end
                 end)
             end
         end
