@@ -17,6 +17,12 @@ if pluginConfig.enabled then
     JobCache = {}
 
     CreateThread(function()
+        if pluginConfig.usingQbus then
+            warnLog("DEPRECATION WARNING: This plugin is deprecated in favor of the new frameworksupport plugin when using QBCore. Download that one instead: https://github.com/Sonoran-Software/sonoran_frameworksupport")
+        end
+    end)
+
+    CreateThread(function()
         local waited = 0
         local method = 1
         while waited < 5 do
